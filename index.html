@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>test</title>
+        <link rel="stylesheet" href="./css/style.css">
+    </head>
+
+    <body>
+        <hgroup>
+            <h1>그레이트 킹덤</h1>
+        </hgroup>
+        <hr>
+        <div id="message">&nbsp</div>
+        <div id="game">
+            <div id="board" class="board">
+            </div>
+            <div id="score">
+                <div class="score-box">
+                    <span id="player1-turn">□</span>Player 1<div id="player1-score">0</div>
+                </div>
+                <div class="score-box">
+                    <span id="player2-turn">□</span>Player 2<div><span id="player2-score">0</span>+3</div>
+                </div>
+            </div>
+        </div>
+        <div class="buttons">
+            <button id="reset">처음부터</button>
+            <button id="pass">차례 넘기기</button>
+            <button id="ready">준비하기</button>
+        </div>
+        <div class="buttons">
+            <button id="room">방 만들기</button>
+            <input id="room-name" readonly>
+        </div>
+        <div class="buttons">
+            <button id="join">방 들어가기</button>
+            <input id="join-name">
+        </div>
+        <div class="buttons">
+            <button id="test">테스트</button>
+        </div>
+
+        <script type="module" src="./js/index.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    </body>
+</html>

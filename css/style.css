@@ -1,0 +1,79 @@
+#game {
+    display: flex;
+    justify-content: center;
+    margin: 4px;
+}
+
+#message {
+    display: flex;
+    justify-content: center;
+    font-size: 40px;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: 53px 53px 53px 53px 53px 53px 53px 53px 53px;
+    grid-template-rows: 53px 53px 53px 53px 53px 53px 53px 53px 53px;
+}
+
+.board .cell {
+    width: 50px;
+    height: 50px;
+    border: 3px solid black;
+    text-align: center;
+    font-size: 40px;
+}
+
+.board .cell.neutral {
+    background-color: black;
+}
+
+.board .cell:hover {
+    background-color: gray;
+}
+
+.board .cell.player1.place {
+    background-color: blue;
+}
+
+.board .cell.player2.place {
+    background-color: orangered;
+}
+
+.board .cell.player1.house {
+    background-color: aqua;
+}
+
+.board .cell.player2.house {
+    background-color: orange;
+}
+
+#score {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    margin: 10px;
+    font-size: 30px;
+}
+
+#score .score-box {
+    border: 4px solid black;
+    margin: 4px
+}
+
+hgroup {
+    text-align: center;
+}
+
+.buttons {
+    display: flex;
+    justify-content: center;
+}
+
+.buttons button {
+    font-size: 30px;
+}
+
+input {
+    font-size: 30px;
+}

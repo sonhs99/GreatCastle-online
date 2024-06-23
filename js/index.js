@@ -97,7 +97,7 @@ function clickCell(i, j, cell) {
 }
 
 function passTurn() {
-  if (board.isEnd()) return;
+  if (board.isEnd() || player != Player.Player1) return;
   send({ event: Event.PASS });
   player = Player.next(player);
   const RESULT = board.pass();

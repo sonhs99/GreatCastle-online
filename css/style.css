@@ -77,3 +77,13 @@ hgroup {
 input {
     font-size: 30px;
 }
+
+.turn {
+    width: 20px;
+    height: 20px;
+    margin: 2px;
+}
+
+.turn.select {
+    border: 2px solid black;
+}

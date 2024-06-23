@@ -36,7 +36,6 @@ const servers = {
 const pc = new RTCPeerConnection(servers);
 let channel = null;
 let channel_handler = null;
-let channel_queue = [];
 let iscaller = false;
 
 export async function createRoom() {
@@ -57,7 +56,6 @@ export async function createRoom() {
   channel.addEventListener("open", (event) => {
     channel.send({ event: Event.MESSAGE, msg: "hello!" });
   });
-  //   channel.addEventListener("message", (event) => channel_queue.push(event.data));
   channel.addEventListener("message", channel_handler);
 
   const offerDescription = await pc.createOffer();
@@ -110,7 +108,6 @@ export async function joinRoom(id) {
 
   pc.addEventListener("datachannel", (event) => {
     channel = event.channel;
-    // channel.addEventListener("message", (event) => channel_queue.push(event.data));
     channel.addEventListener("message", channel_handler);
     channel.addEventListener("open", (event) => {
       channel.send({ event: Event.MESSAGE, msg: "hello!" });
@@ -147,14 +144,8 @@ export async function joinRoom(id) {
 
 export function send(message) {
   if (channel === null) return;
-  //   console.log(JSON.stringify(message));
   channel.send(JSON.stringify(message));
 }
-
-// export async function get() {
-//   while (channel_queue.length == 0);
-//   return channel_queue.shift();
-// }
 
 export function register(handler) {
   channel_handler = handler;
@@ -169,4 +160,8 @@ export function leave() {
 
 export function isCaller() {
   return iscaller;
+}
+
+export function isConnected() {
+  return channel !== null;
 }

@@ -1,5 +1,5 @@
 import { Player, GameResult, Point, Board } from "./game.js";
-import { createRoom, joinRoom, send, register, leave, isCaller } from "./p2p.js";
+import { createRoom, joinRoom, send, register, leave, isCaller, isConnected } from "./p2p.js";
 
 export const Event = {
   READY: 0,
@@ -14,22 +14,27 @@ Object.freeze(Event);
 
 const BOARD_SIZE = 9;
 let player = Player.Player1;
-let my_player = null;
+let start_player = null;
 let board = new Board(BOARD_SIZE);
 let ready_count = [false, false];
 let rtc_queue = [];
 
+let boardCells = document.getElementsByClassName("cell");
+
 export function hash(data) {
-  return data.reduce((s, x, i) => s * 360 + x * i);
+  return data.reduce((s, x, i) => s * 180 + x * i);
 }
 
 function get() {
-  while (rtc_queue.length == 0);
-  return rtc_queue.shift();
+  const until = (resolve) => {
+    if (rtc_queue.length == 0) setTimeout((_) => until(resolve), 100);
+    else resolve(rtc_queue.shift());
+  };
+  return new Promise(until);
 }
 
 function resetBoard() {
-  player = Player.Player1;
+  player = start_player;
   board = new Board(BOARD_SIZE);
   document.getElementById("board").replaceChildren();
   document.getElementById("message").innerHTML = "&nbsp;";
@@ -54,16 +59,17 @@ function drawBoard() {
 function clickCell(i, j, cell) {
   const POINT = new Point(i, j, board.size);
   console.log("[EVENT] Click", [i, j, POINT.getIndex()]);
-  if (board.isEnd()) return;
+  if (board.isEnd() || player != Player.Player1) return;
   if (board.isPlaceable(POINT)) {
+    send({ event: Event.PLACE, x: i, y: j });
     var PLAYER_CLASS = "";
     if (player == Player.Player1) {
       PLAYER_CLASS = "player1";
     } else if (player == Player.Player2) {
       PLAYER_CLASS = "player2";
     }
-    cell.classList.add(PLAYER_CLASS);
-    cell.classList.add("place");
+    boardCells.item(POINT.getIndex()).classList.add(PLAYER_CLASS);
+    boardCells.item(POINT.getIndex()).classList.add("place");
 
     const RESULT = board.placeStone(POINT, player);
     var cell = document.getElementsByClassName("cell");
@@ -71,8 +77,8 @@ function clickCell(i, j, cell) {
     if (RESULT.result == GameResult.KILLED) {
       RESULT.remove.map((idx) => (cell.item(idx).textContent = "X"));
       RESULT.eyes.map((idx) => {
-        cell.item(idx).classList.add(PLAYER_CLASS);
-        cell.item(idx).classList.add("house");
+        boardCells.item(idx).classList.add(PLAYER_CLASS);
+        boardCells.item(idx).classList.add("house");
       });
       document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
       console.log("[EVENT] Dead Stone", RESULT.remove);
@@ -80,8 +86,8 @@ function clickCell(i, j, cell) {
     } else if (RESULT.result == GameResult.PLACED) {
       console.log("[EVENT] Eyes", RESULT.eyes);
       RESULT.eyes.map((idx) => {
-        cell.item(idx).classList.add(PLAYER_CLASS);
-        cell.item(idx).classList.add("house");
+        boardCells.item(idx).classList.add(PLAYER_CLASS);
+        boardCells.item(idx).classList.add("house");
       });
       document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
     }
@@ -116,7 +122,7 @@ async function join_room() {
   await joinRoom(ROOM_ID);
 }
 
-function toss() {
+async function toss() {
   console.log("[TOSS] Coin-Toss Protocol start");
   if (isCaller()) {
     const number = Math.floor(Math.random() * 255);
@@ -125,30 +131,50 @@ function toss() {
     console.log("[TOSS] x:", number);
     console.log("[TOSS] hash x:", hashed);
     send({ event: Event.TOSS, value: hashed });
-    const guess = get();
+    const guess = await get();
     send({ event: Event.TOSS, value: number });
-    const result = get();
+    const result = await get();
     if (!result) console.log("[TOSS] Protocol has failed!");
-    else console.log("[TOSS] Result:", truth != guess);
+    else {
+      console.log("[TOSS] Result:", truth != guess);
+      if (truth != guess) {
+        document.getElementById("player2-turn").style.border = "none";
+        start_player = Player.Player1;
+      } else {
+        document.getElementById("player1-turn").style.border = "none";
+        start_player = Player.Player2;
+      }
+    }
   } else {
-    const hashed = get();
+    const hashed = await get();
     console.log("[TOSS] hash x:", hashed);
     const guess = Math.floor(Math.random() * 255) % 2 != 0;
     send({ event: Event.TOSS, value: guess });
-    const number = get();
+    const number = await get();
     console.log("[TOSS] x:", number);
     const result = hash([number, number, number, number, number, number, number, number, number, number]) == hashed;
-    send({ event: Event.Toss, value: result });
+    send({ event: Event.TOSS, value: result });
     if (!result) console.log("[TOSS] Protocol has failed");
     else {
       const truth = number % 2 != 0;
-      console.log("[TOSS] result:", truth == guess);
+      console.log("[TOSS] Result:", truth == guess);
+      console.log("[TOSS] Result:", truth != guess);
+      if (truth == guess) {
+        document.getElementById("player1-turn").style.border = "none";
+        start_player = Player.Player1;
+      } else {
+        document.getElementById("player2-turn").style.border = "none";
+        start_player = Player.Player2;
+      }
     }
   }
+  resetBoard();
 }
 
 function ready() {
+  if (!isConnected()) return;
   ready_count[0] = true;
+  document.getElementById("player1-turn").style.backgroundColor = "blue";
   send({ event: Event.READY });
   if (ready_count[0] + ready_count[1] == 2) {
     toss();
@@ -161,10 +187,45 @@ register((event) => {
   console.log(data);
   if (data.event == Event.READY) {
     ready_count[1] = true;
+    document.getElementById("player2-turn").style.backgroundColor = "red";
     if (ready_count[0] + ready_count[1] == 2) {
       toss();
     }
+  } else if (data.event == Event.PLACE) {
+    console.log("[RTC] PLACE:", [data.x, data.y]);
+    const POINT = new Point(data.x, data.y, board.size);
+    var PLAYER_CLASS = "";
+    if (player == Player.Player1) {
+      PLAYER_CLASS = "player1";
+    } else if (player == Player.Player2) {
+      PLAYER_CLASS = "player2";
+    }
+    boardCells.item(POINT.getIndex()).classList.add(PLAYER_CLASS);
+    boardCells.item(POINT.getIndex()).classList.add("place");
+
+    const RESULT = board.placeStone(POINT, player);
+
+    if (RESULT.result == GameResult.KILLED) {
+      RESULT.remove.map((idx) => (cell.item(idx).textContent = "X"));
+      RESULT.eyes.map((idx) => {
+        boardCells.item(idx).classList.add(PLAYER_CLASS);
+        boardCell.item(idx).classList.add("house");
+      });
+      document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
+      console.log("[EVENT] Dead Stone", RESULT.remove);
+      showResult(RESULT.winner, RESULT.score, RESULT.eyes);
+    } else if (RESULT.result == GameResult.PLACED) {
+      console.log("[EVENT] Eyes", RESULT.eyes);
+      RESULT.eyes.map((idx) => {
+        boardCells.item(idx).classList.add(PLAYER_CLASS);
+        boardCells.item(idx).classList.add("house");
+      });
+      document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
+    }
+
+    player = Player.next(player);
   } else if (data.event == Event.TOSS) {
+    console.log("[RTC] GET:", data.value);
     rtc_queue.push(data.value);
   } else if (data.event == Event.MESSAGE) {
     console.log(data.msg);

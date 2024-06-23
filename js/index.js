@@ -98,6 +98,7 @@ function clickCell(i, j, cell) {
 
 function passTurn() {
   if (board.isEnd()) return;
+  send({ event: Event.PASS });
   player = Player.next(player);
   const RESULT = board.pass();
   if (RESULT.result == GameResult.CALCED) {
@@ -224,6 +225,13 @@ register((event) => {
     }
 
     player = Player.next(player);
+  } else if (data.event == Event.PASS) {
+    player = Player.next(player);
+    const RESULT = board.pass();
+    if (RESULT.result == GameResult.CALCED) {
+      console.log(RESULT.score);
+      showResult(RESULT.winner, 0, RESULT.score);
+    }
   } else if (data.event == Event.TOSS) {
     console.log("[RTC] GET:", data.value);
     rtc_queue.push(data.value);

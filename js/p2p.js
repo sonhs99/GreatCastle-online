@@ -53,10 +53,14 @@ export async function createRoom() {
   });
 
   channel = pc.createDataChannel("control");
-  channel.addEventListener("open", (event) => {
-    channel.send({ event: Event.MESSAGE, msg: "hello!" });
-  });
   channel.addEventListener("message", channel_handler);
+  channel.addEventListener("open", (event) => {
+    console.log("[RTC] Connection opened");
+  });
+  channel.addEventListener("close", (event) => {
+    channel = null;
+    iscaller = false;
+  });
 
   const offerDescription = await pc.createOffer();
   await pc.setLocalDescription(offerDescription);
@@ -110,7 +114,11 @@ export async function joinRoom(id) {
     channel = event.channel;
     channel.addEventListener("message", channel_handler);
     channel.addEventListener("open", (event) => {
-      channel.send({ event: Event.MESSAGE, msg: "hello!" });
+      console.log("[RTC] Connection opened");
+    });
+    channel.addEventListener("close", (event) => {
+      channel = null;
+      iscaller = false;
     });
   });
 

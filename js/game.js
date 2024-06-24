@@ -101,6 +101,10 @@ export class Board {
     return point.isPlaceable() && this.board[INDEX] == Stone.EMPTY;
   }
 
+  setStartPlayer(player) {
+    this.score[Player.next(player)] += 3;
+  }
+
   placeStone(point, player) {
     const STONE_IDX = point.getIndex();
     this.board[STONE_IDX] = Stone.getStone(player);
@@ -131,8 +135,8 @@ export class Board {
       this.end = true;
       return {
         result: GameResult.CALCED,
-        winner: this.score[Player.Player1] < this.score[Player.Player2] + 3 ? Player.Player2 : Player.Player1,
-        score: Math.abs(this.score[1] - this.score[0] + 3),
+        winner: this.score[Player.Player1] < this.score[Player.Player2] ? Player.Player2 : Player.Player1,
+        score: Math.abs(this.score[1] - this.score[0]),
       };
     } else {
       this.passCount = true;

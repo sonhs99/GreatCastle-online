@@ -81,9 +81,6 @@ input {
 .turn {
     width: 20px;
     height: 20px;
-    margin: 2px;
-}
-
-.turn.select {
+    margin: 10px 2px 2px 2px;
     border: 2px solid black;
 }

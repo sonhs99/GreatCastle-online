@@ -75,7 +75,7 @@ function placeStone(point) {
     RESULT.remove.map((idx) => (boardCells.item(idx).textContent = "X"));
     RESULT.eyes.map((idx) => {
       boardCells.item(idx).classList.add(PLAYER_CLASS);
-      boardCell.item(idx).classList.add("house");
+      boardCells.item(idx).classList.add("house");
     });
     document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
     console.log("[EVENT] Dead Stone", RESULT.remove);

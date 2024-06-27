@@ -17,6 +17,8 @@
 }
 
 .board .cell {
+    display: grid;
+    place-content: center;
     width: 50px;
     height: 50px;
     border: 3px solid black;
@@ -79,8 +81,8 @@ input {
 }
 
 .turn {
-    width: 20px;
-    height: 20px;
+    width: 25px;
+    height: 25px;
     margin: 10px 2px 2px 2px;
     border: 2px solid black;
 }

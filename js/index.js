@@ -1,5 +1,6 @@
 import { Player, GameResult, Point, Board } from "./game.js";
 import { createRoom, joinRoom, send, register, leave, isCaller, isConnected } from "./p2p.js";
+import { BoardView } from "./view.js";
 
 export const Event = {
   READY: 0,
@@ -17,12 +18,28 @@ Object.freeze(Event);
 const BOARD_SIZE = 9;
 let player = Player.Player1;
 let start_player = null;
-let board = new Board(BOARD_SIZE);
-board.end = true;
 let ready_count = [false, false];
 let rtc_queue = [];
+let last_point = null;
 
-let boardCells = document.getElementsByClassName("cell");
+let board = new Board(BOARD_SIZE);
+board.end = true;
+let board_view = new BoardView(
+  document.getElementById("board"),
+  document.getElementsByClassName("cell"),
+  [
+    {
+      turn: document.getElementById("player1-turn"),
+      score: document.getElementById("player1-score"),
+    },
+    {
+      turn: document.getElementById("player2-turn"),
+      score: document.getElementById("player2-score"),
+    },
+  ],
+  document.getElementById("message"),
+  board.numOfCell
+);
 
 export function hash(data) {
   return data.reduce((s, x, i) => s * 180 + x * i);
@@ -38,67 +55,37 @@ function get() {
 
 function resetBoard() {
   player = start_player;
+  last_point = null;
   board = new Board(BOARD_SIZE);
-  document.getElementById("board").replaceChildren();
-  document.getElementById("message").innerHTML = "&nbsp;";
-  document.getElementById("player1-score").textContent = 0;
-  document.getElementById("player2-score").textContent = 0;
-  drawBoard();
-}
-
-function drawBoard() {
-  const BOARD = document.getElementById("board");
-  [...Array(board.numOfCell)].forEach((_, idx) => {
-    let cell = document.createElement("div");
-    cell.classList.add("cell");
-    if (idx == Math.floor(board.numOfCell / 2)) {
-      cell.classList.add("neutral");
-    }
-    cell.addEventListener("click", () => clickCell(Math.floor(idx / board.size), idx % board.size));
-    BOARD.appendChild(cell);
-  });
+  board_view.reset(clickCell);
 }
 
 function placeStone(point) {
-  var PLAYER_CLASS = "";
-  if (player == Player.Player1) {
-    PLAYER_CLASS = "player1";
-  } else if (player == Player.Player2) {
-    PLAYER_CLASS = "player2";
-  }
-  boardCells.item(point.getIndex()).classList.add(PLAYER_CLASS);
-  boardCells.item(point.getIndex()).classList.add("place");
-
+  board_view.placeStone(player, point.getIndex());
+  board_view.updateLastPoint(last_point, point);
   const RESULT = board.placeStone(point, player);
 
+  board_view.markEye(player, RESULT.eyes);
+  board_view.updateScore(board.score);
+  console.log("[EVENT] Eyes", RESULT.eyes);
+
   if (RESULT.result == GameResult.KILLED) {
-    RESULT.remove.map((idx) => (boardCells.item(idx).textContent = "X"));
-    RESULT.eyes.map((idx) => {
-      boardCells.item(idx).classList.add(PLAYER_CLASS);
-      boardCells.item(idx).classList.add("house");
-    });
-    document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
+    board_view.markDead(player, RESULT.remove);
     console.log("[EVENT] Dead Stone", RESULT.remove);
     showResult(RESULT.winner, RESULT.score, RESULT.eyes);
   } else if (RESULT.result == GameResult.PLACED) {
-    console.log("[EVENT] Eyes", RESULT.eyes);
-    RESULT.eyes.map((idx) => {
-      boardCells.item(idx).classList.add(PLAYER_CLASS);
-      boardCells.item(idx).classList.add("house");
-    });
-    document.getElementById(PLAYER_CLASS + "-score").textContent = board.score[player];
-
     player = Player.next(player);
-    updateTurn();
+    board_view.updateTurn(player);
+    last_point = point;
   }
 }
 
-function clickCell(x, y) {
-  const POINT = new Point(x, y, board.size);
-  console.log("[EVENT] Click", [x, y, POINT.getIndex()]);
+function clickCell(idx) {
+  const POINT = Point.fromIndex(idx, board.size);
+  console.log("[EVENT] Click", [POINT.x, POINT.y, idx]);
   if (board.isEnd() || player != Player.Player1 || ready_count[0] + ready_count[1] != 2) return;
   if (board.isPlaceable(POINT)) {
-    send({ event: Event.PLACE, x: x, y: y });
+    send({ event: Event.PLACE, x: POINT.x, y: POINT.y });
     placeStone(POINT);
   }
 }
@@ -112,24 +99,13 @@ function passTurn() {
     console.log(RESULT.score);
     showResult(RESULT.winner, 0, RESULT.score);
   } else {
-    updateTurn();
-  }
-}
-
-function updateTurn() {
-  if (player == Player.Player1) {
-    document.getElementById("player1-turn").style.border = "2px solid black";
-    document.getElementById("player2-turn").style.border = "none";
-  } else {
-    document.getElementById("player1-turn").style.border = "none";
-    document.getElementById("player2-turn").style.border = "2px solid black";
+    board_view.updateTurn(player);
   }
 }
 
 function showResult(player, kill, lead) {
-  var msg = document.getElementById("message");
-  if (kill != 0) msg.textContent = "[Player " + (1 + player) + "]이(가) 성 " + kill + "개를 부쉈습니다!";
-  else msg.textContent = "[Player " + (1 + player) + "]이(가) 성 " + lead + "개 차이로 이겼습니다!";
+  if (kill != 0) board_view.printMessage("[Player " + (1 + player) + "]이(가) 성 " + kill + "개를 부쉈습니다!");
+  else board_view.printMessage("[Player " + (1 + player) + "]이(가) 성 " + lead + "개 차이로 이겼습니다!");
   ready_count = [false, false];
 }
 
@@ -191,43 +167,31 @@ async function toss() {
     }
   }
   resetBoard();
+  board_view.updateScore(board.score);
+  board_view.setPlayerColor(["blue", "red"]);
+  board_view.updateTurn(player);
   board.setStartPlayer(start_player);
-  document.getElementById("player1-score").textContent = board.score[Player.Player1];
-  document.getElementById("player2-score").textContent = board.score[Player.Player2];
-  document.getElementById("player1-turn").style.backgroundColor = "blue";
-  document.getElementById("player2-turn").style.backgroundColor = "red";
-  updateTurn();
 }
 
 function ready() {
+  console.log(!isConnected(), !board.isEnd(), ready_count[0]);
   if (!isConnected() || !board.isEnd() || ready_count[0]) return;
   console.log(ready_count);
   ready_count[0] = true;
-  document.getElementById("player1-turn").style.border = "2px solid black";
-  document.getElementById("player1-turn").style.backgroundColor = "black";
-  if (!ready_count[1]) {
-    document.getElementById("player2-turn").style.border = "2px solid black";
-    document.getElementById("player2-turn").style.backgroundColor = "white";
-  }
+  board_view.updateReady(ready_count);
   send({ event: Event.READY });
   if (ready_count[0] + ready_count[1] == 2) {
     toss();
   }
 }
 
-drawBoard();
 register((event) => {
   const data = JSON.parse(event.data);
   switch (data.event) {
     case Event.READY:
       if (!board.isEnd() || ready_count[1]) break;
       ready_count[1] = true;
-      document.getElementById("player2-turn").style.border = "2px solid black";
-      document.getElementById("player2-turn").style.backgroundColor = "black";
-      if (!ready_count[0]) {
-        document.getElementById("player1-turn").style.border = "2px solid black";
-        document.getElementById("player1-turn").style.backgroundColor = "white";
-      }
+      board_view.updateReady(ready_count);
       if (ready_count[0] + ready_count[1] == 2) {
         toss();
       }
@@ -246,7 +210,7 @@ register((event) => {
         console.log(RESULT.score);
         showResult(RESULT.winner, 0, RESULT.score);
       } else {
-        updateTurn();
+        board_view.updateTurn(player);
       }
       break;
 
@@ -263,6 +227,8 @@ register((event) => {
       rtc_queue.push(data.value);
   }
 });
+
+board_view.reset();
 
 document.getElementById("leave").addEventListener("click", leaveRoom);
 document.getElementById("ready").addEventListener("click", ready);
